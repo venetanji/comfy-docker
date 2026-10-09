@@ -1,0 +1,9 @@
+# Custom nodes auto-cloned by docker-entrypoint.sh on container start.
+# One git URL per line. Lines starting with # are ignored.
+# Already-cloned nodes are skipped; remove a node's directory to force re-clone.
+https://github.com/ID-LoRA/ID-LoRA-LTX2.3-ComfyUI
+# Storyboard -> LTX-2.3 video pipeline nodes
+https://github.com/jamesWalker55/comfyui-various           # JWStringMultiline
+https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI   # LTXDirector / LTXDirectorGuide
+https://github.com/1038lab/ComfyUI-QwenVL                  # AILab_QwenVL (image->prompt)
+https://github.com/ltdrdata/ComfyUI-Inspire-Pack           # LoadImageListFromDir //Inspire

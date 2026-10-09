@@ -1,0 +1,5 @@
+# Tailscale sidecar image for comfy-docker: upstream image + ethtool, which the compose.yaml
+# entrypoint wrapper uses to disable TSO/GSO/GRO on tailscale0 at every start (MAINTENANCE §8).
+# Update tailscale with: docker compose build --pull tailscale-serve tailscale-serve-video
+FROM tailscale/tailscale:latest
+RUN apk add --no-cache ethtool

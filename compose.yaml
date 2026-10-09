@@ -1,45 +1,116 @@
-services:
-  tailscale-serve:
-    image: tailscale/tailscale:latest
-    hostname: comfyui
-    ports:
-      - "8189:8188"
-    
-    environment:
-      - TS_AUTHKEY=${TS_AUTHKEY}
-      - TS_EXTRA_ARGS=--advertise-tags=tag:container
-      - TS_STATE_DIR=/var/lib/tailscale
-      - TS_SERVE_CONFIG=/config/serve.json
-      - TS_USERSPACE=false
-    volumes:
-      - ./serve.json:/config/serve.json
-      - tailscale-data:/var/lib/tailscale
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    cap_add:
-      - net_admin
-    restart: unless-stopped
+x-comfyui-build: &comfyui-build
+  context: .
+  dockerfile: Dockerfile
+  args:
+    COMFYUI_BRANCH: ${COMFYUI_BRANCH:-master}
+    INSTALL_PLUGIN_DEPS: ${INSTALL_PLUGIN_DEPS:-1}
 
+x-comfyui-volumes: &comfyui-volumes
+  - ${COMFYUI_MODELS_DIR}:/app/ComfyUI/models
+  - ${COMFYUI_USER_DIR:-${COMFY_DOCKER_HOST_DIR:-/home/venetanji/dev/comfy-docker}/user}:/app/ComfyUI/user
+  - ${COMFYUI_WORKFLOWS_DIR:-${COMFYUI_USER_DIR:-${COMFY_DOCKER_HOST_DIR:-/home/venetanji/dev/comfy-docker}/user/default/workflows}}:/app/ComfyUI/user/default/workflows
+  - ${COMFYUI_INPUT_DIR:-${COMFY_DOCKER_HOST_DIR:-/home/venetanji/dev/comfy-docker}/input}:/app/ComfyUI/input
+  - ${COMFYUI_OUTPUT_DIR:-${COMFY_DOCKER_HOST_DIR:-/home/venetanji/dev/comfy-docker}/output}:/app/ComfyUI/output
+  - ${COMFYUI_ENV_CACHE_DIR:-${COMFY_DOCKER_HOST_DIR:-/home/venetanji/dev/comfy-docker}/.ce}:/root/.ce
+  - ${COMFY_DOCKER_HOST_DIR:-/home/venetanji/dev/comfy-docker}/manager.ini:/app/ComfyUI/user/__manager/config.ini:ro
+  - custom_nodes:/app/ComfyUI/custom_nodes
+
+x-comfyui-service: &comfyui-service
+  build: *comfyui-build
+  restart: unless-stopped
+  logging: &bounded-logging
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+  volumes: *comfyui-volumes
+  shm_size: "8gb"
+  # HF read-only token injected from .env so gated downloads work and persist across
+  # recreate/rebuild. huggingface_hub / `hf` CLI auto-read HF_TOKEN. Value lives only in .env.
+  environment:
+    HF_TOKEN: ${HF_TOKEN:-}
+    HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+
+x-nginx-service: &nginx-service
+  image: nginx:alpine
+  restart: unless-stopped
+  logging: *bounded-logging
+  volumes:
+    - ${COMFY_DOCKER_HOST_DIR:-/home/venetanji/dev/comfy-docker}/nginx.conf:/etc/nginx/nginx.conf:ro
+
+services:
   comfyui:
-    network_mode: "service:tailscale-serve"
-    build:
-      context: .
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    volumes:
-      - ${COMFYUI_MODELS_DIR}:/app/ComfyUI/models
-      - ${COMFYUI_WORKFLOWS_DIR}:/app/ComfyUI/user/default/workflows
-      - ./manager.ini:/app/ComfyUI/user/__manager/config.ini
-      - custom_nodes:/app/ComfyUI/custom_nodes
+    <<: *comfyui-service
+    image: comfy-docker-comfyui:retained-20261004
+    ports:
+      - "${COMFYUI_PORT:-8189}:8188"
+    networks:
+      default:
+      tailscale-mesh:
+        ipv4_address: 10.99.0.7
+        aliases:
+          - comfy-docker-tailscale-serve-1
+    command:
+      - python
+      - /app/ComfyUI/main.py
+      - --listen
+      - --port
+      - "8199"
+      - --enable-manager
+      - --use-sage-attention
+      - --database-url
+      - ${COMFYUI_DB_PATH:-sqlite:////app/ComfyUI/user/comfyui-primary.db}
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: all
+              device_ids: ["${COMFYUI_GPU_ID:-0}"]
               capabilities: [gpu]
+
+  nginx:
+    <<: *nginx-service
+    network_mode: "service:comfyui"
+    depends_on:
+      - comfyui
+
+  comfyui-video:
+    <<: *comfyui-service
+    image: comfy-docker-comfyui-video:retained-20261004
+    ports:
+      - "${COMFYUI_VIDEO_PORT:-8190}:8188"
+    networks:
+      default:
+      tailscale-mesh:
+        ipv4_address: 10.99.0.9
+        aliases:
+          - comfy-docker-tailscale-serve-video-1
+    command:
+      - python
+      - /app/ComfyUI/main.py
+      - --port
+      - "8199"
+      - --enable-manager
+      - --database-url
+      - ${COMFYUI_VIDEO_DB_PATH:-sqlite:////app/ComfyUI/user/comfyui-video.db}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${COMFYUI_VIDEO_GPU_ID:-1}"]
+              capabilities: [gpu]
+
+  nginx-video:
+    <<: *nginx-service
+    network_mode: "service:comfyui-video"
+    depends_on:
+      - comfyui-video
 
 volumes:
   custom_nodes:
-  tailscale-data:
-    driver: local
+
+networks:
+  default:
+  tailscale-mesh:
+    external: true

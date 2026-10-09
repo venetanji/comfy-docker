@@ -1,0 +1,35 @@
+# Optional plugin dependencies.
+# Installed only when INSTALL_PLUGIN_DEPS=1 is passed at build time.
+#
+# Note: pip OpenCV wheels are CPU-focused; CUDA-enabled OpenCV generally
+# requires building from source or using a custom base image.
+opencv-python-headless
+gguf
+rotary-embedding-torch
+einops
+lark
+requirements-parser
+imageio-ffmpeg
+diffusers
+comfy_env==0.4.3   # pinned 2026-09-19: comfy-env >=0.4.25 rejects the root comfy-env-root.toml still shipped by GeometryPack/TRELLIS2 (MAINTENANCE §8)
+comfy-3d-viewers
+# comfy-dynamic-widgets was unpublished from PyPI (404); vendored last-known 0.1.6 wheel (used by ComfyUI-GeometryPack)
+/app/wheels/comfy_dynamic_widgets-0.1.6-py3-none-any.whl
+comfy-sparse-attn
+openai-whisper
+torchcodec
+# ID-LoRA-LTX2.3-ComfyUI (ltx-trainer is training-only, not on PyPI; omit)
+ltx-core
+ltx-pipelines
+# Deps for storyboard->video custom-node packs (custom_nodes.txt). Baked into the
+# image so BOTH instances have them regardless of bootstrap-stamp timing.
+soundfile        # comfyui-various (JWStringMultiline) — undeclared dep, no requirements.txt
+webcolors        # ComfyUI-Inspire-Pack
+matplotlib       # ComfyUI-Inspire-Pack
+cachetools       # ComfyUI-Inspire-Pack
+# ComfyUI-LTXVideo (upstream dfb2786, 2026-09-17) runtime deps — baked so they survive --force-recreate
+# (the boot bootstrap installs them into the writable layer only, and per-instance stamps then skip the reinstall).
+colour-science>=0.4.4
+openimageio
+ninja~=1.11.1.4
+timm

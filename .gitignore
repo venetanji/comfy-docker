@@ -1,1 +1,5 @@
-/custom_nodes.txt
+/.env
+/input/
+/output/
+/user/
+/.ce/

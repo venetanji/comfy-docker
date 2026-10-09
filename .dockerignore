@@ -1,0 +1,10 @@
+# Build-context allow-list. The repo dir carries ~27 GB of runtime data (.ce, output, input, user)
+# that must never be sent to the daemon; only the files the Dockerfile COPYs are admitted.
+*
+!Dockerfile
+!docker-entrypoint.sh
+!custom_nodes.txt
+!requirements.txt
+!plugin-requirements.txt
+!wheels
+!Dockerfile.tailscale
